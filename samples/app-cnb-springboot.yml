@@ -1,0 +1,14 @@
+app-source:         https://github.com/alexandreroman/cnb-springboot
+app-source-branch:  testing
+app-source-subpath: .
+app-source-module:  ""
+app-source-java:    "11"
+
+gitops-user:            "CI Bot"
+gitops-email:           "cibot@withtanzu.com"
+gitops-source:          https://github.com/alexandreroman/cicd-with-tanzu-gitops
+gitops-source-branch:   master
+gitops-manifest-deploy: k8s/cnb-springboot/dev
+
+app-image:     cnb-springboot
+app-image-tag: harbor.withtanzu.com/tanzu-apps/cnb-springboot

@@ -1,0 +1,154 @@
+resources:
+- name: source-code
+  type: git
+  icon: github
+  source:
+    uri: ((app-source))
+    branch: ((app-source-branch))
+    username: ((git-username))
+    password: ((git-password))
+- name: gitops
+  type: git
+  icon: github
+  source:
+    uri: ((gitops-source))
+    branch: ((gitops-source-branch))
+    username: ((git-username))
+    password: ((git-password))
+- name: build-image
+  type: docker-image
+  icon: docker
+  source:
+    repository: ((app-image-tag))
+
+jobs:
+- name: run-unit-tests
+  plan:
+  - get: source-code
+    trigger: true
+  - task: compile-and-test
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: node
+          tag: ((app-source-node))
+      inputs:
+      - name: source-code
+      outputs:
+      - name: source-code
+      caches:
+      - path: .npm
+      - path: source-code/node_modules
+      run:
+        path: /bin/bash
+        args:
+        - -c
+        - |
+          cd source-code && cd ((app-source-subpath))
+          npm install && npm test
+  - get: gitops
+  - task: update-build-manifest
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: bitnami/git
+      inputs:
+      - name: source-code
+      - name: gitops
+      outputs:
+      - name: gitops
+      run:
+        path: /bin/bash
+        args:
+        - -c
+        - |
+          cd gitops
+          git config user.name "((gitops-user))"
+          git config user.email "((gitops-email))"
+
+          mkdir -p kpack
+          cat > kpack/((app-image)).yml << EOF
+          apiVersion: kpack.io/v1alpha1
+          kind: Image
+          metadata:
+            name: ((app-image))
+            namespace: default
+          spec:
+            tag: ((app-image-tag))
+            serviceAccount: default
+            builder:
+              name: default
+              kind: ClusterBuilder
+            cacheSize: "2Gi"
+            source:
+              subPath: ((app-source-subpath))
+              git:
+                url: ((app-source))
+                revision: $(cat ../source-code/.git/ref)
+          EOF
+          
+          cat kpack/((app-image)).yml
+          git add .
+          git commit -m "Update image ((app-image)) with Git commit $(cat ../source-code/.git/ref)"
+  - put: gitops
+    params:
+      repository: gitops
+      rebase: true
+
+- name: apply-deployment
+  plan:
+  - get: build-image
+    trigger: true
+    params:
+      skip_download: true
+  - get: gitops
+  - task: update-manifest
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: lyft/kustomizer
+          tag: v3.3.0
+      inputs:
+      - name: build-image
+      - name: gitops
+      outputs:
+      - name: gitops
+      run:
+        path: /bin/sh
+        args:
+        - -c
+        - |
+          export "BUILD_IMAGE=((app-image-tag))@$(cat build-image/digest)"
+          export "GITOPS_BASE_DIR=$PWD/gitops"
+          cd "$GITOPS_BASE_DIR"
+          git config user.name "((gitops-user))"
+          git config user.email "((gitops-email))"
+
+          mkdir -p ((gitops-manifest-deploy))
+          cd ((gitops-manifest-deploy))
+
+          if [ ! -f kustomization.yml ]; then
+            cat > kustomization.yml << EOF
+          apiVersion: kustomize.config.k8s.io/v1beta1
+          kind: Kustomization
+          bases:
+          - ../base
+          EOF
+          fi
+
+          kustomize edit set image "((app-image))=$BUILD_IMAGE"
+          kustomize edit add annotation -f "timestamp:$(TZ=UTC date '+%Y%m%dT%H%M%S')"
+
+          cd "$GITOPS_BASE_DIR"
+          git add .
+          git commit -m "Update image ((app-image)) with tag $BUILD_IMAGE"
+  - put: gitops
+    params:
+      repository: gitops
+      rebase: true

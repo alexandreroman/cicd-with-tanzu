@@ -1,0 +1,18 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cnb-springboot
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/alexandreroman/cicd-with-tanzu-gitops.git'
+    path: k8s/cnb-springboot/dev
+    targetRevision: HEAD
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: cnb-springboot
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

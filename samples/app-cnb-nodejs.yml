@@ -1,0 +1,13 @@
+app-source:         https://github.com/alexandreroman/cnb-nodejs
+app-source-branch:  testing
+app-source-subpath: .
+app-source-node:    "12"
+
+gitops-user:            "CI Bot"
+gitops-email:           "cibot@withtanzu.com"
+gitops-source:          https://github.com/alexandreroman/cicd-with-tanzu-gitops
+gitops-source-branch:   master
+gitops-manifest-deploy: k8s/cnb-nodejs/dev
+
+app-image:     cnb-nodejs
+app-image-tag: harbor.withtanzu.com/tanzu-apps/cnb-nodejs

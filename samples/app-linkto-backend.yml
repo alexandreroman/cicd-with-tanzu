@@ -1,0 +1,14 @@
+app-source:         https://github.com/alexandreroman/linkto
+app-source-branch:  testing
+app-source-subpath: backend
+app-source-module:  ""
+app-source-java:    "11"
+
+gitops-user:            "CI Bot"
+gitops-email:           "cibot@withtanzu.com"
+gitops-source:          https://github.com/alexandreroman/cicd-with-tanzu-gitops
+gitops-source-branch:   master
+gitops-manifest-deploy: k8s/linkto/dev
+
+app-image:     linkto-backend
+app-image-tag: harbor.withtanzu.com/tanzu-apps/linkto-backend
